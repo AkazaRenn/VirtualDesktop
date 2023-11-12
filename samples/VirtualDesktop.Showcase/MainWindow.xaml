@@ -86,8 +86,7 @@
                                   ItemsSource="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type l:MainWindow}}, Path=Desktops}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type l:VirtualDesktopViewModel}">
-                                <Button x:Name="outerBorder"
-                                        Click="SwitchDesktop">
+                                <Button x:Name="outerBorder">
                                     <Button.Style>
                                         <Style TargetType="{x:Type Button}">
                                             <Style.Setters>
