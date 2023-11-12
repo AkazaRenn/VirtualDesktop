@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -9,10 +10,9 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-
 using Microsoft.Win32;
-
 using WindowsDesktop;
+using WindowsDesktop.Properties;
 
 namespace VirtualDesktopShowcase;
 
@@ -170,15 +170,13 @@ partial class MainWindow {
 
         VirtualDesktop.Renamed += (_, args) => {
             var desktop = this.Desktops.FirstOrDefault(x => x.Id == args.Desktop.Id);
-            if(desktop != null)
-                desktop.Name = args.Name;
+            if (desktop != null) desktop.Name = args.Name;
             Debug.WriteLine($"Renamed: {args.Desktop}");
         };
 
         VirtualDesktop.WallpaperChanged += (_, args) => {
             var desktop = this.Desktops.FirstOrDefault(x => x.Id == args.Desktop.Id);
-            if(desktop != null)
-                desktop.WallpaperPath = new Uri(args.Path);
+            if (desktop != null) desktop.WallpaperPath = new Uri(args.Path);
             Debug.WriteLine($"Wallpaper changed: {args.Desktop}, {args.Path}");
         };
 
@@ -186,8 +184,7 @@ partial class MainWindow {
 
         foreach(var desktop in VirtualDesktop.GetDesktops()) {
             var vm = new VirtualDesktopViewModel(desktop);
-            if(desktop.Id == currentId)
-                vm.IsCurrent = true;
+            if (desktop.Id == currentId) vm.IsCurrent = true;
 
             this.Desktops.Add(vm);
             this.desktopList.Add(desktop);
@@ -229,8 +226,7 @@ partial class MainWindow {
             await Task.Delay(_delay);
 
             var handle = GetForegroundWindow();
-            if(VirtualDesktop.IsPinnedWindow(handle) == false)
-                VirtualDesktop.MoveToDesktop(handle, desktop);
+            if (VirtualDesktop.IsPinnedWindow(handle) == false) VirtualDesktop.MoveToDesktop(handle, desktop);
             desktop.Switch();
         }
     }
@@ -241,8 +237,7 @@ partial class MainWindow {
 
     private async void SwitchLeftAndMove(object sender, RoutedEventArgs e) {
         var left = VirtualDesktop.Current.GetLeft();
-        if(left == null)
-            return;
+        if (left == null) return;
 
         if(this.ThisWindowMenu.IsChecked ?? true) {
             left.SwitchAndMove(this);
@@ -250,8 +245,7 @@ partial class MainWindow {
             await Task.Delay(_delay);
 
             var handle = GetForegroundWindow();
-            if(VirtualDesktop.IsPinnedWindow(handle) == false)
-                VirtualDesktop.MoveToDesktop(handle, left);
+            if (VirtualDesktop.IsPinnedWindow(handle) == false) VirtualDesktop.MoveToDesktop(handle, left);
             left.Switch();
         }
     }
@@ -262,8 +256,7 @@ partial class MainWindow {
 
     private async void SwitchRightAndMove(object sender, RoutedEventArgs e) {
         var right = VirtualDesktop.Current.GetRight();
-        if(right == null)
-            return;
+        if (right == null) return;
 
         if(this.ThisWindowMenu.IsChecked ?? true) {
             right.SwitchAndMove(this);
@@ -271,8 +264,7 @@ partial class MainWindow {
             await Task.Delay(_delay);
 
             var handle = GetForegroundWindow();
-            if(VirtualDesktop.IsPinnedWindow(handle) == false)
-                VirtualDesktop.MoveToDesktop(handle, right);
+            if (VirtualDesktop.IsPinnedWindow(handle) == false) VirtualDesktop.MoveToDesktop(handle, right);
             right.Switch();
         }
     }
@@ -308,7 +300,7 @@ partial class MainWindow {
         foreach(var it in this.Desktops.Select((x, i) => new { Desktop = x, Index = i })) {
             if(it.Desktop.IsCurrent && it.Index > 0) {
                 Debug.WriteLine($"Moved: {it.Index} -> {it.Index - 1}");
-                VirtualDesktop.Move(VirtualDesktop.Current, it.Index - 1);
+                VirtualDesktop.Current.Move(it.Index - 1);
             }
         }
     }
@@ -317,7 +309,7 @@ partial class MainWindow {
         foreach(var it in this.Desktops.Select((x, i) => new { Desktop = x, Index = i })) {
             if(it.Desktop.IsCurrent && (it.Index < (this.Desktops.Count - 1))) {
                 Debug.WriteLine($"Moved: {it.Index} -> {it.Index + 1}");
-                VirtualDesktop.Move(VirtualDesktop.Current, it.Index + 1);
+                VirtualDesktop.Current.Move(it.Index + 1);
             }
         }
     }
@@ -339,8 +331,7 @@ partial class MainWindow {
             if((dialog.ShowDialog(this) ?? false)
                 && File.Exists(dialog.FileName)) {
                 var desktop = VirtualDesktop.FromId(vm.Id);
-                if(desktop != null)
-                    desktop.WallpaperPath = dialog.FileName;
+                if (desktop != null) desktop.WallpaperPath = dialog.FileName;
             }
         }
 
