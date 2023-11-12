@@ -2,11 +2,16 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-	<TargetFrameworks>net7.0-windows10.0.19041.0;net6.0-windows10.0.19041.0</TargetFrameworks>
+	<TargetFrameworks>net7.0-windows10.0.19041.0</TargetFrameworks>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <RootNamespace>VirtualDesktopShowcase</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WatchdogDotNet" Version="1.0.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\VirtualDesktop.WPF\VirtualDesktop.WPF.csproj" />

@@ -20,10 +20,4 @@ Close the desktop for this window and jump back to the main one (index 0).
 
 ### For Floating Windows
 
-Pin all of them for access acorss desktops.
-
-## Issues
-
-### Doesn't close the desktop on Windows Terminal termination
-
-Need help on it.
+Pin all of them for access across desktops.

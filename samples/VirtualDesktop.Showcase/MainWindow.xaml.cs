@@ -7,12 +7,14 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Timers;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using WindowsDesktop;
 using WindowsDesktop.Properties;
+using WatchdogDotNet;
 
 namespace VirtualDesktopShowcase;
 
@@ -22,10 +24,11 @@ partial class MainWindow {
 
     public ObservableCollection<VirtualDesktopViewModel> Desktops { get; } = new();
 
-    readonly Dictionary<IntPtr, VirtualDesktop> desktopsMap = new();
-    readonly List<VirtualDesktop> desktopList = new();
+    WindowTracker? windowTracker;
+    private readonly Timer moveDesktopCountDown = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
 
-    WindowTracker windowTracker;
+    //private readonly Dictionary<IntPtr, VirtualDesktop> desktopsMap = new();
+    private readonly List<VirtualDesktop> desktopList = new();
 
     bool NotReservedDesktops(Guid id) {
         return desktopList[0].Id != id;// && desktops[1].Id != id;
@@ -39,20 +42,21 @@ partial class MainWindow {
         } catch { }
     }
 
-    void OnMax(IntPtr hwnd, string fileDescription) {
+    void OnMax(IntPtr hwnd) {
         try {
             var desktop = VirtualDesktop.Create();
-            desktop.Name = fileDescription;
             System.Threading.Thread.Sleep(400);
             if(VirtualDesktop.IsPinnedWindow(hwnd)) {
                 VirtualDesktop.UnpinWindow(hwnd);
             }
 
+            var createdIn = VirtualDesktop.FromHwnd(hwnd);
             VirtualDesktop.MoveToDesktop(hwnd, desktop);
-            if(VirtualDesktop.FromHwnd(hwnd) == VirtualDesktop.Current) {
+            if(createdIn == VirtualDesktop.Current) {
                 desktop.Switch();
             }
-            desktopsMap.Add(hwnd, desktop);
+            //desktopsMap.Add(hwnd, desktop);
+            desktop.Name = "​" + WindowTracker.GetProcessDescriptionByHwnd(hwnd);
         } catch { }
     }
 
@@ -70,7 +74,7 @@ partial class MainWindow {
                 curr.Remove();
             }
 
-            desktopsMap.Remove(hwnd);
+            //desktopsMap.Remove(hwnd);
         } catch { }
     }
 
@@ -82,7 +86,7 @@ partial class MainWindow {
                 curr.Remove();
             }
 
-            desktopsMap.Remove(hwnd);
+            //desktopsMap.Remove(hwnd);
         } catch {
         }
     }
@@ -95,14 +99,16 @@ partial class MainWindow {
                 desktopList[0].Switch();
             }
 
-            desktopsMap.Remove(hwnd);
+            //desktopsMap.Remove(hwnd);
         } catch {
         }
     }
 
     void ClearDesktops() {
-        foreach(var desktop in desktopsMap.Values) {
-            desktop.Remove();
+        foreach(var desktop in VirtualDesktop.GetDesktops()) {
+            if(desktop.Name.StartsWith("​")) {
+                desktop.Remove();
+            }
         }
     }
 
@@ -117,12 +123,19 @@ partial class MainWindow {
         var currDesktop = VirtualDesktop.Current;
 
         windowTracker = new();
-        windowTracker.FloatWindowEvent += (_, e) => OnFloatWindow(e.hwnd);
-        windowTracker.MaximizeEvent += (_, e) => OnMax(e.hwnd, e.description);
-        windowTracker.UnmaximizeEvent += (_, e) => OnUnmax(e.hwnd);
-        windowTracker.MinimizeEvent += (_, e) => OnMin(e.hwnd);
-        windowTracker.CloseEvent += (_, e) => OnClose(e.hwnd);
+        windowTracker.FloatWindowEvent += (_, e) => OnFloatWindow(e.Hwnd);
+        windowTracker.MaximizeEvent += (_, e) => OnMax(e.Hwnd);
+        windowTracker.UnmaximizeEvent += (_, e) => OnUnmax(e.Hwnd);
+        windowTracker.MinimizeEvent += (_, e) => OnMin(e.Hwnd);
+        windowTracker.CloseEvent += (_, e) => OnClose(e.Hwnd);
         windowTracker.SortCurrentWindows();
+
+        moveDesktopCountDown.AutoReset = false;
+        moveDesktopCountDown.Elapsed += (s, e) => {
+            if(NotReservedDesktops(VirtualDesktop.Current.Id)) {
+                VirtualDesktop.Current.Move(1);
+            }
+        };
 
         currDesktop.Switch();
     }
@@ -142,6 +155,8 @@ partial class MainWindow {
             foreach(var desktop in this.Desktops)
                 desktop.IsCurrent = desktop.Id == args.NewDesktop.Id;
             Debug.WriteLine($"Switched: {args.OldDesktop.Name} -> {args.NewDesktop.Name}");
+
+            moveDesktopCountDown.Restart();
         };
 
         VirtualDesktop.Moved += (_, args) => {

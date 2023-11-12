@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace VirtualDesktopShowcase {
@@ -10,54 +11,58 @@ namespace VirtualDesktopShowcase {
     }
 
     public class WindowTrackerEvent: EventArgs {
-        public WindowTrackerEvent(IntPtr hwnd, string description = "") {
-            this.hwnd = hwnd;
-            this.description = description;
+        public WindowTrackerEvent(IntPtr hwnd) {
+            Hwnd = hwnd;
         }
 
-        public IntPtr hwnd { get; }
-        public string description { get; }
+        public IntPtr Hwnd { get; }
     }
 
-    internal class WindowTracker {
+    internal partial class WindowTracker {
         delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType,
             IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
         delegate bool EnumWindowsProc(IntPtr hwnd, int lParam);
 
-        [DllImport("user32.dll")]
-        static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr
            hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess,
            uint idThread, uint dwFlags);
 
-        [DllImport("user32.dll")]
-        static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool UnhookWinEvent(IntPtr hWinEventHook);
 
-        [DllImport("user32.dll")]
-        static extern bool EnumWindows(EnumWindowsProc enumFunc, int lParam);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool EnumWindows(EnumWindowsProc enumFunc, int lParam);
 
-        [DllImport("Oleacc.dll")]
-        static extern IntPtr GetProcessHandleFromHwnd(IntPtr hwnd);
+        [LibraryImport("Oleacc.dll")]
+        private static partial IntPtr GetProcessHandleFromHwnd(IntPtr hwnd);
 
-        [DllImport("kernel32.dll")]
-        static extern int GetProcessId(IntPtr handle);
+        [LibraryImport("kernel32.dll")]
+        private static partial int GetProcessId(IntPtr handle);
 
-        [DllImport("user32.dll")]
-        static extern IntPtr GetShellWindow();
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr GetShellWindow();
 
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        static extern int GetWindowTextLength(IntPtr hWnd);
+        [LibraryImport("user32.dll", SetLastError = true)]
+        private static partial int GetWindowTextLengthW(IntPtr hWnd);
 
-        [DllImport("user32.dll")]
-        static extern bool IsWindow(IntPtr hwnd);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool IsWindow(IntPtr hwnd);
 
-        [DllImport("user32.dll")]
-        static extern bool IsWindowVisible(IntPtr hwnd);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool IsWindowVisible(IntPtr hwnd);
 
-        [DllImport("user32.dll")]
-        static extern bool IsZoomed(IntPtr hwnd);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool IsZoomed(IntPtr hwnd);
 
-        [DllImport("user32.dll")]
-        static extern bool IsIconic(IntPtr hwnd);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool IsIconic(IntPtr hwnd);
 
         const uint OBJID_WINDOW = 0;
         const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
@@ -101,7 +106,8 @@ namespace VirtualDesktopShowcase {
             EnumWindows(delegate (IntPtr hwnd, int lParam) {
                 if(hwnd != shellWindow) {
                     if(IsZoomed(hwnd)) {
-                        MaximizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd, GetProcessDescriptionByHwnd(hwnd)));
+                        maxWindows.Add(hwnd);
+                        MaximizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
                     } else if(!IsIconic(hwnd)) {
                         FloatWindowEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
                     }
@@ -116,7 +122,7 @@ namespace VirtualDesktopShowcase {
             if(idObject == OBJID_WINDOW &&
                !IsZoomed(hwnd) &&
                IsWindowVisible(hwnd) &&
-               GetWindowTextLength(hwnd) > 0) {
+               GetWindowTextLengthW(hwnd) > 0) {
                 FloatWindowEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
             }
         }
@@ -126,9 +132,9 @@ namespace VirtualDesktopShowcase {
             if(idObject == OBJID_WINDOW && IsWindowVisible(hwnd)) {
                 if(!maxWindows.Contains(hwnd) &&
                    IsZoomed(hwnd) &&
-                   GetWindowTextLength(hwnd) > 0) {
+                   GetWindowTextLengthW(hwnd) > 0) {
                     maxWindows.Add(hwnd);
-                    MaximizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd, GetProcessDescriptionByHwnd(hwnd)));
+                    MaximizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
                 } else if(idObject == OBJID_WINDOW &&
                           maxWindows.Contains(hwnd) &&
                           !IsZoomed(hwnd) &&
@@ -150,8 +156,7 @@ namespace VirtualDesktopShowcase {
         void CloseWinEventHandler(IntPtr hWinEventHook, uint eventType,
             IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) {
             if(idObject == OBJID_WINDOW &&
-               maxWindows.Contains(hwnd) &&
-               IsZoomed(hwnd)) {
+               maxWindows.Contains(hwnd)) {
                 System.Threading.Thread.Sleep(100);
                 if(!IsWindow(hwnd)) {
                     maxWindows.Remove(hwnd);
@@ -160,7 +165,7 @@ namespace VirtualDesktopShowcase {
             }
         }
 
-        static string GetProcessDescriptionByHwnd(IntPtr hwnd) {
+        public static string GetProcessDescriptionByHwnd(IntPtr hwnd) {
             var procHandle = GetProcessHandleFromHwnd(hwnd);
             if(procHandle == IntPtr.Zero) {
                 return hwnd.ToString();
@@ -172,16 +177,18 @@ namespace VirtualDesktopShowcase {
             }
 
             var process = Process.GetProcessById(pid);
+            if(process.MainWindowTitle.Length > 0 && process.MainWindowTitle.Length <= 30) {
+                return process.MainWindowTitle;
+            }
+
             var mainModule = process.MainModule;
             if(mainModule == null) {
-                return hwnd.ToString();
+                return "";
             }
 
             string? fileDescription = mainModule.FileVersionInfo.FileDescription;
-            if("Application Frame Host".Equals(fileDescription)) {
-                return process.MainWindowTitle;
-            } else if(fileDescription == null) {
-                return hwnd.ToString();
+            if("Application Frame Host".Equals(fileDescription) || fileDescription == null || fileDescription.Length == 0) {
+                return new DirectoryInfo(process.ProcessName).Name;
             }
 
             return fileDescription;
