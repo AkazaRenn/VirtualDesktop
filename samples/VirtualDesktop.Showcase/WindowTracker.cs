@@ -168,12 +168,12 @@ namespace VirtualDesktopShowcase {
         public static string GetProcessDescriptionByHwnd(IntPtr hwnd) {
             var procHandle = GetProcessHandleFromHwnd(hwnd);
             if(procHandle == IntPtr.Zero) {
-                return hwnd.ToString();
+                return "";
             }
 
             var pid = GetProcessId(procHandle);
             if(pid <= 0) {
-                return hwnd.ToString();
+                return "";
             }
 
             var process = Process.GetProcessById(pid);
