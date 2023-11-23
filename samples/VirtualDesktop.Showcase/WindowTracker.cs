@@ -4,21 +4,28 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace VirtualDesktopShowcase {
-    internal struct WINDOWINFO {
+using WindowsDesktop;
+
+namespace VirtualDesktopShowcase
+{
+    internal struct WINDOWINFO
+    {
         public uint ownerpid;
         public uint childpid;
     }
 
-    public class WindowTrackerEvent: EventArgs {
-        public WindowTrackerEvent(IntPtr hwnd) {
+    public class WindowTrackerEvent : EventArgs
+    {
+        public WindowTrackerEvent(IntPtr hwnd)
+        {
             Hwnd = hwnd;
         }
 
         public IntPtr Hwnd { get; }
     }
 
-    internal partial class WindowTracker {
+    internal partial class WindowTracker
+    {
         delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType,
             IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
         delegate bool EnumWindowsProc(IntPtr hwnd, int lParam);
@@ -65,6 +72,7 @@ namespace VirtualDesktopShowcase {
         private static partial bool IsIconic(IntPtr hwnd);
 
         const uint OBJID_WINDOW = 0;
+        const uint CHILDID_SELF = 0;
         const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
         const uint EVENT_SYSTEM_MINIMIZESTART = 0x0016;
         const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
@@ -81,7 +89,8 @@ namespace VirtualDesktopShowcase {
         public event EventHandler<WindowTrackerEvent>? MinimizeEvent;
         public event EventHandler<WindowTrackerEvent>? CloseEvent;
 
-        public WindowTracker() {
+        public WindowTracker()
+        {
             hhooks.Add(SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero,
                 FloatWinEventHandler, 0, 0, WINEVENT_OUTOFCONTEXT));
 
@@ -95,20 +104,28 @@ namespace VirtualDesktopShowcase {
                 CloseWinEventHandler, 0, 0, WINEVENT_OUTOFCONTEXT));
         }
 
-        ~WindowTracker() {
-            foreach(var hhook in hhooks) {
+        ~WindowTracker()
+        {
+            foreach (var hhook in hhooks)
+            {
                 UnhookWinEvent(hhook);
             }
         }
 
-        public void SortCurrentWindows() {
+        public void SortCurrentWindows()
+        {
             var shellWindow = GetShellWindow();
-            EnumWindows(delegate (IntPtr hwnd, int lParam) {
-                if(hwnd != shellWindow) {
-                    if(IsZoomed(hwnd)) {
+            EnumWindows(delegate (IntPtr hwnd, int lParam)
+            {
+                if (hwnd != shellWindow)
+                {
+                    if (IsZoomed(hwnd))
+                    {
                         maxWindows.Add(hwnd);
                         MaximizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
-                    } else if(!IsIconic(hwnd)) {
+                    }
+                    else if (!IsIconic(hwnd))
+                    {
                         FloatWindowEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
                     }
                 }
@@ -118,27 +135,36 @@ namespace VirtualDesktopShowcase {
         }
 
         void FloatWinEventHandler(IntPtr hWinEventHook, uint eventType,
-            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) {
-            if(idObject == OBJID_WINDOW &&
+            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+        {
+            if (idObject == OBJID_WINDOW &&
+                idChild == CHILDID_SELF &&
                !IsZoomed(hwnd) &&
                IsWindowVisible(hwnd) &&
-               GetWindowTextLengthW(hwnd) > 0) {
+               GetWindowTextLengthW(hwnd) > 0)
+            {
                 FloatWindowEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
             }
         }
 
         void MaxUnmaxWinEventHandler(IntPtr hWinEventHook, uint eventType,
-            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) {
-            if(idObject == OBJID_WINDOW && IsWindowVisible(hwnd)) {
-                if(!maxWindows.Contains(hwnd) &&
+            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+        {
+            if (idObject == OBJID_WINDOW && IsWindowVisible(hwnd))
+            {
+                if (!maxWindows.Contains(hwnd) &&
                    IsZoomed(hwnd) &&
-                   GetWindowTextLengthW(hwnd) > 0) {
+                   GetWindowTextLengthW(hwnd) > 0)
+                {
                     maxWindows.Add(hwnd);
                     MaximizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
-                } else if(idObject == OBJID_WINDOW &&
+                }
+                else if (idObject == OBJID_WINDOW &&
+                            idChild == CHILDID_SELF &&
                           maxWindows.Contains(hwnd) &&
                           !IsZoomed(hwnd) &&
-                          !IsIconic(hwnd)) {
+                          !IsIconic(hwnd))
+                {
                     maxWindows.Remove(hwnd);
                     UnmaximizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
                 }
@@ -146,48 +172,62 @@ namespace VirtualDesktopShowcase {
         }
 
         void MinWinEventHandler(IntPtr hWinEventHook, uint eventType,
-            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) {
-            if(maxWindows.Contains(hwnd)) {
+            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+        {
+            if (maxWindows.Contains(hwnd))
+            {
                 maxWindows.Remove(hwnd);
                 MinimizeEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
             }
         }
 
         void CloseWinEventHandler(IntPtr hWinEventHook, uint eventType,
-            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime) {
-            if(idObject == OBJID_WINDOW &&
-               maxWindows.Contains(hwnd)) {
+            IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+        {
+            if (idObject == OBJID_WINDOW &&
+                idChild == CHILDID_SELF &&
+               maxWindows.Contains(hwnd))
+            {
                 System.Threading.Thread.Sleep(100);
-                if(!IsWindow(hwnd)) {
+                if (!IsWindow(hwnd))
+                {
                     maxWindows.Remove(hwnd);
                     CloseEvent?.Invoke(this, new WindowTrackerEvent(hwnd));
                 }
             }
         }
 
-        public static string GetProcessDescriptionByHwnd(IntPtr hwnd) {
+        public const string UnNamableWindowName = "Administrator Window";
+
+        public static string GetProcessDescriptionByHwnd(IntPtr hwnd)
+        {
             var procHandle = GetProcessHandleFromHwnd(hwnd);
-            if(procHandle == IntPtr.Zero) {
-                return String.Empty;
+            if (procHandle == IntPtr.Zero)
+            {
+                return UnNamableWindowName;
             }
 
             var pid = GetProcessId(procHandle);
-            if(pid <= 0) {
-                return String.Empty;
+            if (pid <= 0)
+            {
+                return UnNamableWindowName;
             }
 
             var process = Process.GetProcessById(pid);
-            if(process.MainWindowTitle.Length > 0 && process.MainWindowTitle.Length <= 30) {
+            if (process.MainWindowTitle.Length > 0 && process.MainWindowTitle.Length <= 30)
+            {
                 return process.MainWindowTitle;
             }
 
             var mainModule = process.MainModule;
-            if(mainModule == null) {
-                return String.Empty;
+            if (mainModule == null)
+            {
+                return UnNamableWindowName;
             }
 
             string? fileDescription = mainModule.FileVersionInfo.FileDescription;
-            if("Application Frame Host".Equals(fileDescription) || fileDescription == null || fileDescription.Length == 0) {
+            if ("Application Frame Host".Equals(fileDescription) || fileDescription == null || fileDescription.Length == 0)
+            {
                 return new DirectoryInfo(process.ProcessName).Name;
             }
 
