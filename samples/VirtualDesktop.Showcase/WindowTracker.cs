@@ -168,12 +168,12 @@ namespace VirtualDesktopShowcase {
         public static string GetProcessDescriptionByHwnd(IntPtr hwnd) {
             var procHandle = GetProcessHandleFromHwnd(hwnd);
             if(procHandle == IntPtr.Zero) {
-                return "";
+                return String.Empty;
             }
 
             var pid = GetProcessId(procHandle);
             if(pid <= 0) {
-                return "";
+                return String.Empty;
             }
 
             var process = Process.GetProcessById(pid);
@@ -183,7 +183,7 @@ namespace VirtualDesktopShowcase {
 
             var mainModule = process.MainModule;
             if(mainModule == null) {
-                return "";
+                return String.Empty;
             }
 
             string? fileDescription = mainModule.FileVersionInfo.FileDescription;

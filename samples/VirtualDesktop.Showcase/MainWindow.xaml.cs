@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -19,6 +19,7 @@ using WatchdogDotNet;
 namespace VirtualDesktopShowcase;
 
 partial class MainWindow {
+    private const string ZeroWidthSpace = "​";
     private const int _delay = 2000;
     private IDisposable? _applicationViewChangedListener;
 
@@ -56,7 +57,7 @@ partial class MainWindow {
                 desktop.Switch();
             }
             //desktopsMap.Add(hwnd, desktop);
-            desktop.Name = "​" + WindowTracker.GetProcessDescriptionByHwnd(hwnd);
+            desktop.Name = ZeroWidthSpace + WindowTracker.GetProcessDescriptionByHwnd(hwnd);
         } catch { }
     }
 
@@ -106,7 +107,7 @@ partial class MainWindow {
 
     void ClearDesktops() {
         foreach(var desktop in VirtualDesktop.GetDesktops()) {
-            if(desktop.Name.StartsWith("​")) {
+            if(desktop.Name.StartsWith(ZeroWidthSpace)) {
                 desktop.Remove();
             }
         }
