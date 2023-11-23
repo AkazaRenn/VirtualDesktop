@@ -312,26 +312,36 @@ partial class MainWindow {
         VirtualDesktop.Current.Remove();
     }
 
-    private void MoveLeft(object sender, RoutedEventArgs e) {
-        foreach(var it in this.Desktops.Select((x, i) => new { Desktop = x, Index = i })) {
-            if(it.Desktop.IsCurrent && it.Index > 0) {
+    private void MoveLeft(object sender, RoutedEventArgs e)
+    {
+        foreach (var it in this.Desktops.Select((x, i) => new { Desktop = x, Index = i }))
+        {
+            if (it.Desktop.IsCurrent && it.Index > 0)
+            {
                 Debug.WriteLine($"Moved: {it.Index} -> {it.Index - 1}");
                 VirtualDesktop.Current.Move(it.Index - 1);
+                return;
             }
         }
     }
 
-    private void MoveRight(object sender, RoutedEventArgs e) {
-        foreach(var it in this.Desktops.Select((x, i) => new { Desktop = x, Index = i })) {
-            if(it.Desktop.IsCurrent && (it.Index < (this.Desktops.Count - 1))) {
+    private void MoveRight(object sender, RoutedEventArgs e)
+    {
+        foreach (var it in this.Desktops.Select((x, i) => new { Desktop = x, Index = i }))
+        {
+            if (it.Desktop.IsCurrent && (it.Index < (this.Desktops.Count - 1)))
+            {
                 Debug.WriteLine($"Moved: {it.Index} -> {it.Index + 1}");
                 VirtualDesktop.Current.Move(it.Index + 1);
+                return;
             }
         }
     }
 
-    private void SwitchDesktop(object sender, RoutedEventArgs e) {
-        if(sender is Button { DataContext: VirtualDesktopViewModel vm }) {
+    private void SwitchDesktop(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: VirtualDesktopViewModel vm })
+        {
             VirtualDesktop.FromId(vm.Id)?.SwitchAndMove(this);
         }
     }
